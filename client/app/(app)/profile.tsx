@@ -14,19 +14,7 @@ import {
 import { useState } from "react";
 import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-// ── Mock user data ──
-const USER = {
-  name: "Youssef Benali",
-  email: "youssef.b@gmail.com",
-  phone: "+213 555 123 456",
-  room: "204",
-  type: "Resident",
-  car: "12345-111-16",
-  memberSince: "March 2026",
-  totalBookings: 12,
-  hoursParked: 38,
-};
+import { useAuthStore } from "@/stores/authStore";
 
 function SectionTitle({ label }: { label: string }) {
   return (
@@ -85,9 +73,21 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const router = useRouter();
+  const { user, logout } = useAuthStore();
+
+  if (!user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-zinc-500">Loading...</Text>
+      </View>
+    );
+  }
+
   const handleLogOut = () => {
-    router.push("/(auth)/login");
+    logout();
+    router.replace("/(auth)/login");
   };
+
   return (
     <ScrollView
       className="flex-1 bg-zinc-50"
@@ -117,7 +117,7 @@ export default function ProfileScreen() {
         {/* Avatar */}
         <View className="w-16 h-16 rounded-full bg-[#2D3139] items-center justify-center mr-4">
           <Text className="text-white text-[24px] font-bold">
-            {USER.name
+            {user.full_name
               .split(" ")
               .map((n) => n[0])
               .join("")}
@@ -126,20 +126,22 @@ export default function ProfileScreen() {
 
         <View className="flex-1">
           <Text className="text-zinc-900 text-[17px] font-semibold">
-            {USER.name}
+            {user.full_name}
           </Text>
-          <Text className="text-zinc-400 text-[13px] mt-0.5">{USER.email}</Text>
+          <Text className="text-zinc-400 text-[13px] mt-0.5">{user.email}</Text>
           <View className="flex-row items-center mt-2 gap-2">
             <View className="bg-zinc-100 rounded-full px-2.5 py-0.5">
-              <Text className="text-zinc-600 text-[11px] font-medium">
-                {USER.type}
+              <Text className="text-zinc-600 text-[11px] font-medium capitalize">
+                {user.user_type}
               </Text>
             </View>
-            <View className="bg-zinc-100 rounded-full px-2.5 py-0.5">
-              <Text className="text-zinc-600 text-[11px] font-medium">
-                Room {USER.room}
-              </Text>
-            </View>
+            {user.room_number && (
+              <View className="bg-zinc-100 rounded-full px-2.5 py-0.5">
+                <Text className="text-zinc-600 text-[11px] font-medium">
+                  Room {user.room_number}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -151,9 +153,15 @@ export default function ProfileScreen() {
       {/* ── Stats row ── */}
       <View className="flex-row gap-3 mt-3 mb-1">
         {[
-          { label: "Bookings", value: USER.totalBookings },
-          { label: "Hours Parked", value: USER.hoursParked },
-          { label: "Since", value: "Mar 26" },
+          {
+            label: "Vehicles",
+            value:
+              user.vehicles && user.vehicles.length > 0
+                ? user.vehicles.length
+                : 0,
+          },
+          { label: "Hours Parked", value: 0 },
+          { label: "Member Since", value: "Mar 26" },
         ].map((stat) => (
           <View
             key={stat.label}
@@ -182,61 +190,41 @@ export default function ProfileScreen() {
         <Row
           icon={User}
           label="Full Name"
-          value={USER.name.split(" ")[0]}
+          value={user.full_name.toString()}
           onPress={() => {}}
         />
-        <Row icon={Phone} label="Phone" value={USER.phone} onPress={() => {}} />
-        <Row
-          icon={Home}
-          label="Room Number"
-          value={USER.room}
-          onPress={() => {}}
-        />
+        <Row icon={Phone} label="Phone" value={user.phone} onPress={() => {}} />
+        {user.room_number && (
+          <Row
+            icon={Home}
+            label="Room Number"
+            value={user.room_number}
+            onPress={() => {}}
+          />
+        )}
       </View>
 
-      {/* ── My Car ── */}
+      {/* ── My Vehicle ── */}
       <SectionTitle label="My Vehicle" />
       <View className="rounded-2xl overflow-hidden border border-zinc-100">
-        <Row
-          icon={Car}
-          label="License Plate"
-          value={USER.car}
-          onPress={() => {}}
-        />
+        {user.vehicles && user.vehicles.length > 0 ? (
+          user.vehicles.map((vehicle) => (
+            <Row
+              key={vehicle.id}
+              icon={Car}
+              label="License Plate"
+              value={vehicle.plate_number}
+              onPress={() => {}}
+            />
+          ))
+        ) : (
+          <Row icon={Car} label="No vehicles" onPress={() => {}} />
+        )}
         <Row
           icon={Clock}
           label="Last Booking"
           value="Today, 14:20"
           onPress={() => {}}
-        />
-      </View>
-
-      {/* ── Preferences ── */}
-      <SectionTitle label="Preferences" />
-      <View className="rounded-2xl overflow-hidden border border-zinc-100">
-        <Row
-          icon={Bell}
-          label="Notifications"
-          right={
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              trackColor={{ false: "#E4E4E7", true: "#2D3139" }}
-              thumbColor="#fff"
-            />
-          }
-        />
-        <Row
-          icon={Moon}
-          label="Dark Mode"
-          right={
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: "#E4E4E7", true: "#2D3139" }}
-              thumbColor="#fff"
-            />
-          }
         />
       </View>
 

@@ -3,19 +3,39 @@ import { Button, Input } from "@/components/ui";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { register, loading } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!agreedToTerms) return;
-    setLoading(true);
-    // TODO: add your register logic here
-    setTimeout(() => setLoading(false), 1500);
+
+    if (!fullName || !email || !password || !phone) {
+      setErrorMessage("Please fill in all fields");
+      return;
+    }
+
+    try {
+      await register({
+        full_name: fullName,
+        email,
+        password,
+        phone,
+        user_type: "visitor",
+      });
+      router.replace("/(app)");
+    } catch (err: any) {
+      console.error("Register error:", err.message);
+      setErrorMessage(err.message || "Registration failed. Please try again.");
+    }
   };
 
   const handleGoogleRegister = () => {
@@ -30,13 +50,46 @@ export default function RegisterScreen() {
       bottomLinkText="Sign in"
       onBottomLinkPress={() => router.push("/(auth)/login")}
     >
+      {/* Error Message */}
+      {errorMessage ? (
+        <View className="bg-red-50 border border-red-200 rounded-md p-3 mb-5">
+          <Text className="text-red-600 text-[13px]">{errorMessage}</Text>
+        </View>
+      ) : null}
+
+      {/* Full Name */}
+      <Input
+        label="Full Name"
+        placeholder="John Doe"
+        value={fullName}
+        onChangeText={(text) => {
+          setFullName(text);
+          setErrorMessage("");
+        }}
+      />
+
       {/* Email */}
       <Input
         label="Email"
         placeholder="name@example.com"
         keyboardType="email-address"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => {
+          setEmail(text);
+          setErrorMessage("");
+        }}
+      />
+
+      {/* Phone */}
+      <Input
+        label="Phone"
+        placeholder="(555) 000-0000"
+        keyboardType="phone-pad"
+        value={phone}
+        onChangeText={(text) => {
+          setPhone(text);
+          setErrorMessage("");
+        }}
       />
 
       {/* Password */}
@@ -45,7 +98,10 @@ export default function RegisterScreen() {
         placeholder="Min. 8 characters"
         isPassword
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(text) => {
+          setPassword(text);
+          setErrorMessage("");
+        }}
       />
 
       {/* Terms checkbox */}

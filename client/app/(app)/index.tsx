@@ -1,9 +1,9 @@
 import { Car, CheckCircle, Clock, MapPin } from "lucide-react-native";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuthStore } from "@/stores/authStore";
 
-// ── Mock data ──
-const USER = { name: "Youssef", roomNumber: "204", type: "resident" };
+// ── Mock data for booking (TODO: replace with actual booking data) ──
 const BOOKING = {
   spot: 5,
   status: "active",
@@ -13,6 +13,17 @@ const BOOKING = {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthStore();
+
+  if (!user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-zinc-500">Loading...</Text>
+      </View>
+    );
+  }
+
+  const firstName = user.full_name.split(" ")[0];
 
   return (
     <ScrollView
@@ -31,12 +42,12 @@ export default function HomeScreen() {
             Good afternoon,
           </Text>
           <Text className="text-[22px] font-semibold text-zinc-900 tracking-tight">
-            {USER.name} 👋
+            {firstName} 👋
           </Text>
         </View>
         <View className="w-10 h-10 rounded-full bg-zinc-100 items-center justify-center">
           <Text className="text-[15px] font-semibold text-zinc-600">
-            {USER.name[0]}
+            {firstName[0]}
           </Text>
         </View>
       </View>
@@ -150,11 +161,17 @@ export default function HomeScreen() {
           },
           {
             label: "Your Room",
-            value: `Room ${USER.roomNumber}`,
+            value: user.room_number ? `Room ${user.room_number}` : "N/A",
             icon: null,
             color: null,
           },
-          { label: "Guest Type", value: "Resident", icon: null, color: null },
+          {
+            label: "Guest Type",
+            value:
+              user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1),
+            icon: null,
+            color: null,
+          },
         ].map((item, i) => (
           <View
             key={i}

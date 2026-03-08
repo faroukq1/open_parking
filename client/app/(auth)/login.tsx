@@ -2,23 +2,41 @@ import AuthScreenWrapper from "@/components/auth/Authscreenwrapper";
 import { Button, Input } from "@/components/ui";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, TouchableOpacity, View, Alert } from "react-native";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login, loading, error: storeError } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleLogin = () => {
-    setLoading(true);
-    // TODO: add your auth logic here
-    setTimeout(() => setLoading(false), 1500);
-    router.push("/(app)");
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setErrorMessage("Please enter email and password");
+      return;
+    }
+
+    try {
+      await login(email, password);
+      router.replace("/(app)");
+    } catch (err: any) {
+      console.error("Login error:", err.message);
+      setErrorMessage(
+        err.message || "Login failed. Please check your credentials.",
+      );
+    }
   };
 
   const handleGoogleLogin = () => {
-    // TODO: Google OAuth
+    Alert.alert("Coming Soon", "Google login is not yet available.");
+    // TODO: Implement Google OAuth
+  };
+
+  const handleForgotPassword = () => {
+    router.push("/");
+    // TODO: Create this screen or replace with your actual route
   };
 
   return (
@@ -29,22 +47,35 @@ export default function LoginScreen() {
       bottomLinkText="Sign up"
       onBottomLinkPress={() => router.push("/(auth)/register")}
       header={
-        <View className="items-center justify-between">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-3xl font-bold text-zinc-900">SmartPark</Text>
           <Image
             source={require("@/assets/images/logo.png")}
-            className="w-52 h-52"
+            className="w-28 h-28"
             resizeMode="contain"
           />
         </View>
       }
     >
+      {/* Error Message */}
+      {errorMessage ? (
+        <View className="bg-red-50 border border-red-200 rounded-md p-3 mb-5">
+          <Text className="text-red-600 text-[13px]">{errorMessage}</Text>
+        </View>
+      ) : null}
+
       {/* Email */}
       <Input
         label="Email"
         placeholder="name@example.com"
         keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => {
+          setEmail(text);
+          setErrorMessage("");
+        }}
       />
 
       {/* Password */}
@@ -53,11 +84,18 @@ export default function LoginScreen() {
         placeholder="••••••••"
         isPassword
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(text) => {
+          setPassword(text);
+          setErrorMessage("");
+        }}
       />
 
       {/* Forgot password */}
-      <TouchableOpacity className="self-end mb-5" activeOpacity={0.7}>
+      <TouchableOpacity
+        className="self-end mb-5"
+        activeOpacity={0.7}
+        onPress={handleForgotPassword}
+      >
         <Text className="text-[13px] text-zinc-500 underline">
           Forgot your password?
         </Text>

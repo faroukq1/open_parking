@@ -73,6 +73,11 @@ class UserCreate(SQLModel):
     plate_numbers: list[str]    = []   # one or more cars at register time
 
 
+class LoginRequest(SQLModel):
+    email:    str
+    password: str
+
+
 class VehicleCreate(SQLModel):
     plate_number: str            # add a single car after register
 
