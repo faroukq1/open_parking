@@ -4,6 +4,7 @@ import "../global.css";
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
+import Toast from "react-native-toast-message";
 
 export default function RootLayout() {
   // Initialize store hydration
@@ -12,10 +13,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(app)" />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(app)" />
+      </Stack>
+      <Toast />
+    </>
   );
 }

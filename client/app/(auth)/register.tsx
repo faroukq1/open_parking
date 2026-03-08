@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useAuthStore } from "@/stores/authStore";
+import Toast from "react-native-toast-message";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -12,14 +13,19 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [plateNumber, setPlateNumber] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   const handleRegister = async () => {
     if (!agreedToTerms) return;
 
-    if (!fullName || !email || !password || !phone) {
-      setErrorMessage("Please fill in all fields");
+    if (!fullName || !email || !password || !phone || !plateNumber) {
+      Toast.show({
+        type: "error",
+        text1: "Missing Fields",
+        text2: "Please fill in all fields",
+        visibilityTime: 3000,
+      });
       return;
     }
 
@@ -30,11 +36,25 @@ export default function RegisterScreen() {
         password,
         phone,
         user_type: "visitor",
+        plate_numbers: [plateNumber.trim().toUpperCase()],
       });
-      router.replace("/(app)");
+      Toast.show({
+        type: "success",
+        text1: "Registration Successful",
+        text2: "Welcome! Your account has been created.",
+        visibilityTime: 2000,
+      });
+      setTimeout(() => {
+        router.replace("/(app)");
+      }, 1000);
     } catch (err: any) {
       console.error("Register error:", err.message);
-      setErrorMessage(err.message || "Registration failed. Please try again.");
+      Toast.show({
+        type: "error",
+        text1: "Registration Failed",
+        text2: err.message || "Registration failed. Please try again.",
+        visibilityTime: 3000,
+      });
     }
   };
 
@@ -45,27 +65,17 @@ export default function RegisterScreen() {
   return (
     <AuthScreenWrapper
       title="Create an account"
-      subtitle="Enter your email below to create your account."
+      subtitle="Enter your details below to create your account."
       bottomText="Already have an account?"
       bottomLinkText="Sign in"
       onBottomLinkPress={() => router.push("/(auth)/login")}
     >
-      {/* Error Message */}
-      {errorMessage ? (
-        <View className="bg-red-50 border border-red-200 rounded-md p-3 mb-5">
-          <Text className="text-red-600 text-[13px]">{errorMessage}</Text>
-        </View>
-      ) : null}
-
       {/* Full Name */}
       <Input
         label="Full Name"
         placeholder="John Doe"
         value={fullName}
-        onChangeText={(text) => {
-          setFullName(text);
-          setErrorMessage("");
-        }}
+        onChangeText={setFullName}
       />
 
       {/* Email */}
@@ -73,23 +83,18 @@ export default function RegisterScreen() {
         label="Email"
         placeholder="name@example.com"
         keyboardType="email-address"
+        autoCapitalize="none"
         value={email}
-        onChangeText={(text) => {
-          setEmail(text);
-          setErrorMessage("");
-        }}
+        onChangeText={setEmail}
       />
 
       {/* Phone */}
       <Input
         label="Phone"
-        placeholder="(555) 000-0000"
+        placeholder="0665720726"
         keyboardType="phone-pad"
         value={phone}
-        onChangeText={(text) => {
-          setPhone(text);
-          setErrorMessage("");
-        }}
+        onChangeText={setPhone}
       />
 
       {/* Password */}
@@ -98,10 +103,16 @@ export default function RegisterScreen() {
         placeholder="Min. 8 characters"
         isPassword
         value={password}
-        onChangeText={(text) => {
-          setPassword(text);
-          setErrorMessage("");
-        }}
+        onChangeText={setPassword}
+      />
+
+      {/* Plate Number */}
+      <Input
+        label="Car Plate Number"
+        placeholder="e.g. 1309368"
+        autoCapitalize="characters"
+        value={plateNumber}
+        onChangeText={setPlateNumber}
       />
 
       {/* Terms checkbox */}

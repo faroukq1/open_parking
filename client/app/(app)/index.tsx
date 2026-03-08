@@ -23,7 +23,7 @@ export default function HomeScreen() {
     );
   }
 
-  const firstName = user.full_name.split(" ")[0];
+  const fullName = user.full_name.toString();
 
   return (
     <ScrollView
@@ -42,12 +42,12 @@ export default function HomeScreen() {
             Good afternoon,
           </Text>
           <Text className="text-[22px] font-semibold text-zinc-900 tracking-tight">
-            {firstName} 👋
+            {fullName} 👋
           </Text>
         </View>
         <View className="w-10 h-10 rounded-full bg-zinc-100 items-center justify-center">
           <Text className="text-[15px] font-semibold text-zinc-600">
-            {firstName[0]}
+            {fullName[0]}
           </Text>
         </View>
       </View>

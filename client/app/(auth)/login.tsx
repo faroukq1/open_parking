@@ -4,28 +4,44 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Image, Text, TouchableOpacity, View, Alert } from "react-native";
 import { useAuthStore } from "@/stores/authStore";
+import Toast from "react-native-toast-message";
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login, loading, error: storeError } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setErrorMessage("Please enter email and password");
+      Toast.show({
+        type: "error",
+        text1: "Missing Fields",
+        text2: "Please enter email and password",
+        visibilityTime: 3000,
+      });
       return;
     }
 
     try {
       await login(email, password);
-      router.replace("/(app)");
+      Toast.show({
+        type: "success",
+        text1: "Login Successful",
+        text2: "Welcome back!",
+        visibilityTime: 2000,
+      });
+      setTimeout(() => {
+        router.replace("/(app)");
+      }, 1000);
     } catch (err: any) {
       console.error("Login error:", err.message);
-      setErrorMessage(
-        err.message || "Login failed. Please check your credentials.",
-      );
+      Toast.show({
+        type: "error",
+        text1: "Login Failed",
+        text2: err.message || "Please check your credentials.",
+        visibilityTime: 3000,
+      });
     }
   };
 
@@ -57,13 +73,6 @@ export default function LoginScreen() {
         </View>
       }
     >
-      {/* Error Message */}
-      {errorMessage ? (
-        <View className="bg-red-50 border border-red-200 rounded-md p-3 mb-5">
-          <Text className="text-red-600 text-[13px]">{errorMessage}</Text>
-        </View>
-      ) : null}
-
       {/* Email */}
       <Input
         label="Email"
@@ -72,10 +81,7 @@ export default function LoginScreen() {
         autoCapitalize="none"
         autoCorrect={false}
         value={email}
-        onChangeText={(text) => {
-          setEmail(text);
-          setErrorMessage("");
-        }}
+        onChangeText={setEmail}
       />
 
       {/* Password */}
@@ -84,10 +90,7 @@ export default function LoginScreen() {
         placeholder="••••••••"
         isPassword
         value={password}
-        onChangeText={(text) => {
-          setPassword(text);
-          setErrorMessage("");
-        }}
+        onChangeText={setPassword}
       />
 
       {/* Forgot password */}
