@@ -41,3 +41,16 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Backend (FastAPI/Python)
+/server/__pycache__/
+/server/*.pyc
+/server/.env
+/server/.vscode/
+/server/.pytest_cache/
+/server/.mypy_cache/
+/server/.venv/
+/server/venv/
+/server/.idea/
+/server/*.sqlite3
+/server/*.log
