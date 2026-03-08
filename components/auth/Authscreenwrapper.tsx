@@ -18,6 +18,7 @@ interface AuthScreenWrapperProps {
   bottomLinkText?: string;
   onBottomLinkPress?: () => void;
   showBackButton?: boolean;
+  header?: React.ReactNode;
 }
 
 export default function AuthScreenWrapper({
@@ -28,6 +29,7 @@ export default function AuthScreenWrapper({
   bottomLinkText,
   onBottomLinkPress,
   showBackButton = true,
+  header,
 }: AuthScreenWrapperProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -60,9 +62,12 @@ export default function AuthScreenWrapper({
           </View>
         )}
 
+        {/* ── STATIC: Header section ── */}
+        {header && <View className="px-6 pb-6">{header}</View>}
+
         {/* ── STATIC: Title block ── */}
-        <View className="px-6 pt-6 pb-8">
-          <Text className="text-[26px] font-semibold text-zinc-900 tracking-tight mb-1.5">
+        <View className="px-6 pb-8">
+          <Text className="text-center text-[26px] font-semibold text-zinc-900 tracking-tight mb-1.5">
             {title}
           </Text>
           <Text className="text-[14px] text-zinc-500 leading-5">

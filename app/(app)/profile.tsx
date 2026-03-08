@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import {
   Bell,
   Car,
@@ -83,7 +84,10 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-
+  const router = useRouter();
+  const handleLogOut = () => {
+    router.push("/(auth)/login");
+  };
   return (
     <ScrollView
       className="flex-1 bg-zinc-50"
@@ -245,7 +249,7 @@ export default function ProfileScreen() {
       {/* ── Logout ── */}
       <SectionTitle label="" />
       <View className="rounded-2xl overflow-hidden border border-red-100">
-        <Row icon={LogOut} label="Log Out" danger onPress={() => {}} />
+        <Row icon={LogOut} label="Log Out" danger onPress={handleLogOut} />
       </View>
 
       {/* ── Version ── */}

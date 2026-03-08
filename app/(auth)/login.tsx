@@ -2,7 +2,7 @@ import AuthScreenWrapper from "@/components/auth/Authscreenwrapper";
 import { Button, Input } from "@/components/ui";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Image, Text, TouchableOpacity, View } from "react-native";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -28,6 +28,15 @@ export default function LoginScreen() {
       bottomText="Don't have an account?"
       bottomLinkText="Sign up"
       onBottomLinkPress={() => router.push("/(auth)/register")}
+      header={
+        <View className="items-center justify-between">
+          <Image
+            source={require("@/assets/images/logo.png")}
+            className="w-52 h-52"
+            resizeMode="contain"
+          />
+        </View>
+      }
     >
       {/* Email */}
       <Input
