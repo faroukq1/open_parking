@@ -17,6 +17,7 @@ import {
   type AvailableSpots,
   type BookingHistory,
 } from "@/lib/parkingApi";
+import { router } from "expo-router";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -135,11 +136,14 @@ export default function HomeScreen() {
             {fullName} 👋
           </Text>
         </View>
-        <View className="w-10 h-10 rounded-full bg-zinc-100 items-center justify-center">
-          <Text className="text-[15px] font-semibold text-zinc-600">
+        <TouchableOpacity
+          onPress={() => router.push("/(app)/profile")}
+          className="w-10 h-10 rounded-full bg-zinc-200 items-center justify-center"
+        >
+          <Text className="text-[15px] font-semibold text-zinc-900">
             {fullName[0]}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* ── Active booking card ── */}
