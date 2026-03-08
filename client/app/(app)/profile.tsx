@@ -144,10 +144,6 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
-
-        <TouchableOpacity className="w-8 h-8 rounded-lg bg-zinc-100 items-center justify-center">
-          <Text className="text-zinc-500 text-[12px] font-medium">Edit</Text>
-        </TouchableOpacity>
       </View>
 
       {/* ── Stats row ── */}
