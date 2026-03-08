@@ -54,3 +54,5 @@ app-example
 /server/.idea/
 /server/*.sqlite3
 /server/*.log
+
+venv
