@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/authStore";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchActiveBooking,
   fetchAvailableSpots,
@@ -18,6 +18,7 @@ import {
   type BookingHistory,
 } from "@/lib/parkingApi";
 import { router } from "expo-router";
+import customFetch from "@/lib/customFetch";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -62,6 +63,25 @@ export default function HomeScreen() {
     };
 
     fetchData();
+  }, [user?.id]);
+
+  // Poll for pending entry every 5 seconds
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const poll = async () => {
+      try {
+        const res = await customFetch.get(`/users/${user.id}/pending-entry`);
+        if (res.data?.pending === true) {
+          router.push("/(app)/parking?mode=booking");
+        }
+      } catch {
+        // Ignore polling errors
+      }
+    };
+
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
   }, [user?.id]);
 
   if (!user) {

@@ -2,6 +2,7 @@ import cv2
 import easyocr
 import numpy as np
 import re
+import httpx
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from sqlmodel import Session, select
 from database import get_session
@@ -96,6 +97,30 @@ async def verify_plate(
         if vehicle:
             # Get owner info
             user = session.get(User, vehicle.user_id)
+
+            # Set pending_entry = True
+            if user:
+                user.pending_entry = True
+                session.add(user)
+                session.commit()
+
+                # Send push notification if user has a token
+                if user.expo_push_token:
+                    try:
+                        with httpx.Client() as client:
+                            client.post(
+                                "https://exp.host/--/api/v2/push/send",
+                                json={
+                                    "to": user.expo_push_token,
+                                    "title": "Parking Entry",
+                                    "body": "Your plate was scanned. Please select your parking spot.",
+                                    "data": {"screen": "parking"},
+                                },
+                                headers={"Content-Type": "application/json"},
+                                timeout=5.0,
+                            )
+                    except Exception:
+                        pass  # Don't fail the endpoint if push notification fails
 
             # Check if user has active booking
             active_booking = session.exec(

@@ -26,6 +26,10 @@ class UpdateLicensePlateRequest(BaseModel):
     plate_number: str
 
 
+class UpdatePushTokenRequest(BaseModel):
+    expo_push_token: str
+
+
 # ── GET /users/{user_id} ─────────────────────────────────────
 @router.get("/{user_id}")
 def get_user(user_id: int, session: Session = Depends(get_session)):
@@ -155,3 +159,40 @@ def add_vehicle(
         "plate_number": vehicle.plate_number,
         "created_at": vehicle.created_at,
     }
+
+
+# ── PATCH /users/{user_id}/push-token ───────────────────────
+@router.patch("/{user_id}/push-token")
+def update_push_token(
+    user_id: int,
+    body: UpdatePushTokenRequest,
+    session: Session = Depends(get_session),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.expo_push_token = body.expo_push_token
+    session.add(user)
+    session.commit()
+    return {"message": "Push token saved"}
+
+
+# ── GET /users/{user_id}/pending-entry ──────────────────────
+@router.get("/{user_id}/pending-entry")
+def get_pending_entry(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"pending": user.pending_entry}
+
+
+# ── POST /users/{user_id}/clear-pending ─────────────────────
+@router.post("/{user_id}/clear-pending")
+def clear_pending_entry(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.pending_entry = False
+    session.add(user)
+    session.commit()
+    return {"message": "Pending entry cleared"}

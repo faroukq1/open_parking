@@ -2,9 +2,44 @@ import AuthScreenWrapper from "@/components/auth/Authscreenwrapper";
 import { Button, Input } from "@/components/ui";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Image, Text, TouchableOpacity, View, Alert } from "react-native";
+import {
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+  Alert,
+  Platform,
+} from "react-native";
 import { useAuthStore } from "@/stores/authStore";
 import Toast from "react-native-toast-message";
+import * as Notifications from "expo-notifications";
+import customFetch from "@/lib/customFetch";
+
+async function registerPushToken(userId: number) {
+  try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+      });
+    }
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") return;
+
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    await customFetch.patch(`/users/${userId}/push-token`, {
+      expo_push_token: tokenData.data,
+    });
+  } catch {
+    // Non-critical — ignore silently
+  }
+}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,6 +60,11 @@ export default function LoginScreen() {
 
     try {
       await login(email, password);
+      // Register push token after successful login
+      const user = useAuthStore.getState().user;
+      if (user?.id) {
+        registerPushToken(user.id);
+      }
       Toast.show({
         type: "success",
         text1: "Login Successful",

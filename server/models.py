@@ -33,6 +33,8 @@ class User(SQLModel, table=True):
     user_type:       UserType      = UserType.visitor
     room_number:     Optional[str] = None
     created_at:      datetime      = Field(default_factory=datetime.utcnow)
+    expo_push_token: Optional[str] = None
+    pending_entry:   bool          = False
 
 
 class Vehicle(SQLModel, table=True):

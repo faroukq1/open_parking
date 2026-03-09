@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocalSearchParams, router } from "expo-router";
+import { useAuthStore } from "@/stores/authStore";
+import customFetch from "@/lib/customFetch";
+import Toast from "react-native-toast-message";
 
 // ── Place Bellecour bounds (from screenshot)
 // The big square: lat 45.7574→45.7590, lon 4.8306→4.8315
@@ -93,8 +97,12 @@ type Status = "available" | "occupied" | "selected";
 
 export default function ParkingScreen() {
   const insets = useSafeAreaInsets();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isBookingMode = mode === "booking";
+  const { user } = useAuthStore();
   const [selected, setSelected] = useState<number | null>(null);
   const [reserved, setReserved] = useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getStatus = (id: number): Status => {
     if (selected === id) return "selected";
@@ -112,10 +120,49 @@ export default function ParkingScreen() {
     return { fill: "rgba(34,197,94,0.55)", stroke: "#22c55e" };
   };
 
-  const handleReserve = () => {
+  const handleReserve = async () => {
     if (!selected) return;
-    setReserved((prev) => [...prev, selected]);
-    setSelected(null);
+
+    if (isBookingMode && user) {
+      // Real booking via API
+      setIsSubmitting(true);
+      try {
+        const vehicleId = user.vehicles?.[0]?.id;
+        if (!vehicleId) {
+          Toast.show({
+            type: "error",
+            text1: "No vehicle found",
+            text2: "Please add a vehicle first",
+          });
+          return;
+        }
+        await customFetch.post(`/bookings/${user.id}`, {
+          spot_id: selected,
+          vehicle_id: vehicleId,
+        });
+        await customFetch.post(`/users/${user.id}/clear-pending`);
+        Toast.show({
+          type: "success",
+          text1: "Spot Reserved!",
+          text2: `Spot #${selected} has been booked`,
+        });
+        setReserved((prev) => [...prev, selected]);
+        setSelected(null);
+        setTimeout(() => router.replace("/(app)"), 1500);
+      } catch (err: any) {
+        Toast.show({
+          type: "error",
+          text1: "Booking Failed",
+          text2: err.response?.data?.detail || "Could not reserve spot",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Local-only reservation (non-booking mode)
+      setReserved((prev) => [...prev, selected]);
+      setSelected(null);
+    }
   };
 
   const available = SPOTS.filter(
@@ -201,6 +248,29 @@ export default function ParkingScreen() {
         style={{ top: insets.top + 12 }}
         pointerEvents="none"
       >
+        {/* Scan banner — only shown in booking mode */}
+        {isBookingMode && (
+          <View
+            className="bg-[#2D3139] rounded-2xl px-5 py-3 mb-2 flex-row items-center gap-3"
+            style={{
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <View className="w-2 h-2 rounded-full bg-green-400" />
+            <View className="flex-1">
+              <Text className="text-white text-[13px] font-semibold">
+                Plate Scanned
+              </Text>
+              <Text className="text-zinc-400 text-[11px]">
+                Tap a green spot to reserve your place
+              </Text>
+            </View>
+          </View>
+        )}
         <View
           className="flex-row items-center justify-between bg-[#2D3139] rounded-2xl px-5 py-3.5"
           style={{
@@ -253,6 +323,7 @@ export default function ParkingScreen() {
             className="bg-zinc-900 rounded-2xl py-4 items-center"
             activeOpacity={0.85}
             onPress={handleReserve}
+            disabled={isSubmitting}
             style={{
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 4 },
@@ -262,7 +333,7 @@ export default function ParkingScreen() {
             }}
           >
             <Text className="text-white text-[15px] font-semibold">
-              Reserve Spot #{selected}
+              {isSubmitting ? "Booking..." : `Reserve Spot #${selected}`}
             </Text>
             <Text className="text-zinc-400 text-[12px] mt-0.5">
               Tap to confirm your reservation
