@@ -18,7 +18,7 @@ const START_LON = 4.8309; // top-left corner lon (west)
 const COLS = 14;
 const ROWS = 13;
 const OCCUPIED_IDS = [2, 5, 8, 14];
-const ROTATION_DEG = 19;
+const ROTATION_DEG = 17;
 
 const GRID_CENTER_LAT = START_LAT - (ROWS * (SPOT_LAT_SIZE + GAP_LAT)) / 2;
 const GRID_CENTER_LON = START_LON + (COLS * (SPOT_LON_SIZE + GAP_LON)) / 2;

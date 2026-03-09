@@ -4,6 +4,7 @@ from routes.auth import router as auth_router
 from routes.spots import router as spots_router
 from routes.bookings import router as bookings_router
 from routes.users import router as users_router
+from routes.camera import router as camera_router
 app = FastAPI(title="Smart Parking API", version="1.0.0")
 
 
@@ -22,3 +23,4 @@ app.include_router(auth_router)
 app.include_router(spots_router)
 app.include_router(bookings_router)
 app.include_router(users_router)
+app.include_router(camera_router)
