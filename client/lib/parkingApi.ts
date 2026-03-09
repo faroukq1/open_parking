@@ -75,3 +75,60 @@ export const fetchBookingHistory = async (
     throw error;
   }
 };
+
+/**
+ * Update user profile
+ */
+export const updateUserProfile = async (
+  userId: number,
+  data: {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+  },
+) => {
+  try {
+    const response = await customFetch.patch(`/users/${userId}`, data);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Change user password
+ */
+export const changePassword = async (
+  userId: number,
+  currentPassword: string,
+  newPassword: string,
+) => {
+  try {
+    const response = await customFetch.patch(`/users/${userId}/password`, {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Add or update vehicle license plate
+ */
+export const updateLicensePlate = async (
+  userId: number,
+  plateNumber: string,
+  vehicleId?: number,
+) => {
+  try {
+    const response = await customFetch.post(`/users/${userId}/vehicle`, {
+      vehicle_id: vehicleId,
+      plate_number: plateNumber,
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

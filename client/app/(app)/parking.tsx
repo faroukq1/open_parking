@@ -7,18 +7,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // The big square: lat 45.7574→45.7590, lon 4.8306→4.8315
 // We split it into a 5x4 grid of small spots ──
 
-const SPOT_LAT_SIZE = 0.00008; // height of each spot
-const SPOT_LON_SIZE = 0.00016; // width of each spot
+const SPOT_LAT_SIZE = 0.00004; // height of each spot
+const SPOT_LON_SIZE = 0.00005; // width of each spot
 const GAP_LAT = 0.00002;
 const GAP_LON = 0.00002;
 
-const START_LAT = 45.75838; // top-left corner lat (north)
-const START_LON = 4.831; // top-left corner lon (west)
+const START_LAT = 45.75841; // top-left corner lat (north)
+const START_LON = 4.8309; // top-left corner lon (west)
 
-const COLS = 5;
-const ROWS = 7;
+const COLS = 14;
+const ROWS = 13;
 const OCCUPIED_IDS = [2, 5, 8, 14];
-const ROTATION_DEG = 17;
+const ROTATION_DEG = 19;
 
 const GRID_CENTER_LAT = START_LAT - (ROWS * (SPOT_LAT_SIZE + GAP_LAT)) / 2;
 const GRID_CENTER_LON = START_LON + (COLS * (SPOT_LON_SIZE + GAP_LON)) / 2;

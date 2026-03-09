@@ -45,6 +45,19 @@ interface AuthStore {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   setHydrated: (hydrated: boolean) => void;
+  updateUser: (updates: {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+  }) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
+  updateLicensePlate: (
+    plateNumber: string,
+    vehicleId?: number,
+  ) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -122,6 +135,111 @@ export const useAuthStore = create<AuthStore>()(
       // Logout action
       logout: () => {
         set({ user: null, error: null });
+      },
+
+      // Update user profile
+      updateUser: async (updates: {
+        full_name?: string;
+        email?: string;
+        phone?: string;
+      }) => {
+        set({ loading: true, error: null });
+
+        try {
+          const currentUser = (useAuthStore.getState() as any).user;
+          if (!currentUser) {
+            throw new Error("No user logged in");
+          }
+
+          const response = await customFetch.patch(
+            `/users/${currentUser.id}`,
+            updates,
+          );
+          const userData = response.data || response;
+
+          // Merge API response with current user to preserve all fields
+          const updatedUser = {
+            ...currentUser,
+            ...userData,
+          };
+
+          set({ user: updatedUser, loading: false, error: null });
+        } catch (error: any) {
+          set({
+            loading: false,
+            error: error.message || "Profile update failed",
+          });
+          throw error;
+        }
+      },
+
+      // Change password
+      changePassword: async (currentPassword: string, newPassword: string) => {
+        set({ loading: true, error: null });
+
+        try {
+          const currentUser = (useAuthStore.getState() as any).user;
+          if (!currentUser) {
+            throw new Error("No user logged in");
+          }
+
+          await customFetch.patch(`/users/${currentUser.id}/password`, {
+            current_password: currentPassword,
+            new_password: newPassword,
+          });
+
+          set({ loading: false, error: null });
+        } catch (error: any) {
+          set({
+            loading: false,
+            error: error.message || "Failed to change password",
+          });
+          throw error;
+        }
+      },
+
+      // Update license plate
+      updateLicensePlate: async (plateNumber: string, vehicleId?: number) => {
+        set({ loading: true, error: null });
+
+        try {
+          const currentUser = (useAuthStore.getState() as any).user;
+          if (!currentUser) {
+            throw new Error("No user logged in");
+          }
+
+          const response = await customFetch.post(
+            `/users/${currentUser.id}/vehicle`,
+            {
+              vehicle_id: vehicleId,
+              plate_number: plateNumber,
+            },
+          );
+
+          // Update user vehicles
+          const updatedVehicles = currentUser.vehicles || [];
+          if (vehicleId) {
+            const index = updatedVehicles.findIndex((v) => v.id === vehicleId);
+            if (index !== -1) {
+              updatedVehicles[index] = response.data;
+            }
+          } else {
+            updatedVehicles.push(response.data);
+          }
+
+          const updatedUser = {
+            ...currentUser,
+            vehicles: updatedVehicles,
+          };
+
+          set({ user: updatedUser, loading: false, error: null });
+        } catch (error: any) {
+          set({
+            loading: false,
+            error: error.message || "Failed to update license plate",
+          });
+          throw error;
+        }
       },
 
       // Set hydration state
