@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,7 +21,6 @@ const START_LON = 4.8309; // top-left corner lon (west)
 
 const COLS = 14;
 const ROWS = 13;
-const OCCUPIED_IDS = [2, 5, 8, 14];
 const ROTATION_DEG = 17;
 
 const GRID_CENTER_LAT = START_LAT - (ROWS * (SPOT_LAT_SIZE + GAP_LAT)) / 2;
@@ -93,7 +92,8 @@ const generateSpots = (): Spot[] => {
 
 const SPOTS = generateSpots();
 
-type Status = "available" | "occupied" | "selected";
+type DbSpot = { id: number; spot_number: number; is_available: boolean };
+type Status = "available" | "occupied" | "selected" | "none";
 
 export default function ParkingScreen() {
   const insets = useSafeAreaInsets();
@@ -103,16 +103,37 @@ export default function ParkingScreen() {
   const [selected, setSelected] = useState<number | null>(null);
   const [reserved, setReserved] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbSpots, setDbSpots] = useState<DbSpot[]>([]);
+
+  // Fetch real spots from backend
+  useEffect(() => {
+    customFetch
+      .get("/spots/")
+      .then((res) => setDbSpots(res.data))
+      .catch(() => {});
+  }, []);
+
+  // Derived maps from DB spots
+  const dbSpotNumbers = new Set(dbSpots.map((s) => s.spot_number));
+  const occupiedNumbers = new Set(
+    dbSpots.filter((s) => !s.is_available).map((s) => s.spot_number),
+  );
+  const spotNumberToDbId = Object.fromEntries(
+    dbSpots.map((s) => [s.spot_number, s.id]),
+  );
 
   const getStatus = (id: number): Status => {
+    if (!dbSpotNumbers.has(id)) return "none";
     if (selected === id) return "selected";
     if (reserved.includes(id)) return "selected";
-    if (OCCUPIED_IDS.includes(id)) return "occupied";
+    if (occupiedNumbers.has(id)) return "occupied";
     return "available";
   };
 
   const getColors = (id: number) => {
     const status = getStatus(id);
+    if (status === "none")
+      return { fill: "rgba(80,80,80,0.15)", stroke: "rgba(120,120,120,0.3)" };
     if (status === "selected")
       return { fill: "rgba(255,255,255,0.7)", stroke: "#ffffff" };
     if (status === "occupied")
@@ -136,8 +157,17 @@ export default function ParkingScreen() {
           });
           return;
         }
+        const dbSpotId = spotNumberToDbId[selected];
+        if (!dbSpotId) {
+          Toast.show({
+            type: "error",
+            text1: "Invalid spot",
+            text2: "This spot doesn't exist",
+          });
+          return;
+        }
         await customFetch.post(`/bookings/${user.id}`, {
-          spot_id: selected,
+          spot_id: dbSpotId,
           vehicle_id: vehicleId,
         });
         await customFetch.post(`/users/${user.id}/clear-pending`);
@@ -165,8 +195,8 @@ export default function ParkingScreen() {
     }
   };
 
-  const available = SPOTS.filter(
-    (s) => !OCCUPIED_IDS.includes(s.id) && !reserved.includes(s.id),
+  const availableCount = dbSpots.filter(
+    (s) => s.is_available && !reserved.includes(s.spot_number),
   ).length;
 
   return (
@@ -188,8 +218,11 @@ export default function ParkingScreen() {
         {SPOTS.map((spot) => {
           const colors = getColors(spot.id);
           const isSelected = selected === spot.id;
-          const isOccupied = OCCUPIED_IDS.includes(spot.id);
-          const isReserved = reserved.includes(spot.id);
+          const status = getStatus(spot.id);
+          const isNone = status === "none";
+          const isOccupied = status === "occupied";
+          const isReserved =
+            status === "selected" && reserved.includes(spot.id);
 
           return (
             <View key={spot.id}>
@@ -200,7 +233,7 @@ export default function ParkingScreen() {
                 strokeWidth={isSelected ? 2.5 : 1.5}
                 tappable
                 onPress={() => {
-                  if (isOccupied || isReserved) return;
+                  if (isNone || isOccupied || isReserved) return;
                   setSelected((prev) => (prev === spot.id ? null : spot.id));
                 }}
               />
@@ -286,7 +319,7 @@ export default function ParkingScreen() {
               Place Bellecour
             </Text>
             <Text className="text-white text-[18px] font-bold leading-tight">
-              {available} / {SPOTS.length} available
+              {availableCount} / {dbSpots.length} available
             </Text>
           </View>
           <View className="gap-1.5">
