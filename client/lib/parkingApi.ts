@@ -21,7 +21,7 @@ export interface BookingHistory {
   status: string;
   entered_at?: string;
   exited_at?: string;
-  created_at: string;
+  reserved_at: string;
 }
 
 /**

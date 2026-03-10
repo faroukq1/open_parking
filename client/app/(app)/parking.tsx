@@ -226,8 +226,8 @@ export default function ParkingScreen() {
         initialRegion={{
           latitude: 45.7582,
           longitude: 4.8311,
-          latitudeDelta: 0.00045,
-          longitudeDelta: 0.00045,
+          latitudeDelta: 0.00065,
+          longitudeDelta: 0.00065,
         }}
         minDelta={0.0002}
         maxDelta={0.0008}

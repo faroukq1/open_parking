@@ -420,8 +420,8 @@ export default function HomeScreen() {
               };
             }
 
-            // Use entered_at if available, otherwise created_at
-            const timestamp = booking.entered_at || booking.created_at;
+            // Use entered_at if available, otherwise reserved_at
+            const timestamp = booking.entered_at || booking.reserved_at;
 
             return (
               <View key={i} className="flex-row items-center justify-between">
