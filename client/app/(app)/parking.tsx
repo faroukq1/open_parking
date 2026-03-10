@@ -148,8 +148,6 @@ export default function ParkingScreen() {
 
   const getColors = (id: number) => {
     const status = getStatus(id);
-    if (status === "none")
-      return { fill: "rgba(80,80,80,0.15)", stroke: "rgba(120,120,120,0.3)" };
     if (status === "selected")
       return { fill: "rgba(255,255,255,0.7)", stroke: "#ffffff" };
     if (status === "my_spot")
