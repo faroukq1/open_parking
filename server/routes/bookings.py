@@ -5,7 +5,7 @@ from datetime import datetime
 from database import get_session
 from models import (
     Booking, BookingCreate, BookingRead,
-    BookingStatus, ParkingSpot, Vehicle,
+    BookingStatus, ParkingSpot, Vehicle, User,
 )
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
@@ -64,6 +64,13 @@ def get_booking_history(user_id: int, session: Session = Depends(get_session)):
 
 @router.post("/{user_id}", response_model=BookingRead)
 def create_booking(user_id: int, data: BookingCreate, session: Session = Depends(get_session)):
+    # Require plate scan approval before allowing a booking
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    if not user.pending_entry:
+        raise HTTPException(403, "Plate scan required before booking")
+
     spot = session.get(ParkingSpot, data.spot_id)
     if not spot or not spot.is_available:
         raise HTTPException(400, "Spot not available")

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, router } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
 import { useAuthStore } from "@/stores/authStore";
 import customFetch from "@/lib/customFetch";
 import Toast from "react-native-toast-message";
@@ -93,7 +93,7 @@ const generateSpots = (): Spot[] => {
 const SPOTS = generateSpots();
 
 type DbSpot = { id: number; spot_number: number; is_available: boolean };
-type Status = "available" | "occupied" | "selected" | "none";
+type Status = "available" | "occupied" | "selected" | "my_spot" | "none";
 
 export default function ParkingScreen() {
   const insets = useSafeAreaInsets();
@@ -104,14 +104,29 @@ export default function ParkingScreen() {
   const [reserved, setReserved] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbSpots, setDbSpots] = useState<DbSpot[]>([]);
+  const [myReservedSpot, setMyReservedSpot] = useState<number | null>(null);
 
-  // Fetch real spots from backend
-  useEffect(() => {
-    customFetch
-      .get("/spots/")
-      .then((res) => setDbSpots(res.data))
-      .catch(() => {});
-  }, []);
+  // Re-fetch spots and active booking every time this tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      customFetch
+        .get("/spots/")
+        .then((res) => setDbSpots(res.data))
+        .catch(() => {});
+
+      if (!user?.id) return;
+      customFetch
+        .get(`/bookings/active/${user.id}`)
+        .then((res) => {
+          if (res.data?.active && res.data.status === "reserved") {
+            setMyReservedSpot(res.data.spot_number);
+          } else {
+            setMyReservedSpot(null);
+          }
+        })
+        .catch(() => {});
+    }, [user?.id]),
+  );
 
   // Derived maps from DB spots
   const dbSpotNumbers = new Set(dbSpots.map((s) => s.spot_number));
@@ -126,6 +141,7 @@ export default function ParkingScreen() {
     if (!dbSpotNumbers.has(id)) return "none";
     if (selected === id) return "selected";
     if (reserved.includes(id)) return "selected";
+    if (myReservedSpot === id) return "my_spot";
     if (occupiedNumbers.has(id)) return "occupied";
     return "available";
   };
@@ -136,6 +152,8 @@ export default function ParkingScreen() {
       return { fill: "rgba(80,80,80,0.15)", stroke: "rgba(120,120,120,0.3)" };
     if (status === "selected")
       return { fill: "rgba(255,255,255,0.7)", stroke: "#ffffff" };
+    if (status === "my_spot")
+      return { fill: "rgba(59,130,246,0.7)", stroke: "#3b82f6" };
     if (status === "occupied")
       return { fill: "rgba(239,68,68,0.7)", stroke: "#ef4444" };
     return { fill: "rgba(34,197,94,0.55)", stroke: "#22c55e" };
@@ -176,7 +194,7 @@ export default function ParkingScreen() {
           text1: "Spot Reserved!",
           text2: `Spot #${selected} has been booked`,
         });
-        setReserved((prev) => [...prev, selected]);
+        setMyReservedSpot(selected); // turn spot blue immediately
         setSelected(null);
         setTimeout(() => router.replace("/(app)"), 1500);
       } catch (err: any) {
@@ -207,10 +225,12 @@ export default function ParkingScreen() {
         mapType="hybrid"
         initialRegion={{
           latitude: 45.7582,
-          longitude: 4.831,
-          latitudeDelta: 0.0015506436452810135,
-          longitudeDelta: 0.00100012868642807,
+          longitude: 4.8311,
+          latitudeDelta: 0.00045,
+          longitudeDelta: 0.00045,
         }}
+        minDelta={0.0002}
+        maxDelta={0.0008}
         showsUserLocation
         showsCompass={false}
         toolbarEnabled={false}
@@ -223,6 +243,7 @@ export default function ParkingScreen() {
           const isOccupied = status === "occupied";
           const isReserved =
             status === "selected" && reserved.includes(spot.id);
+          const isMySpot = status === "my_spot";
 
           return (
             <View key={spot.id}>
@@ -233,12 +254,19 @@ export default function ParkingScreen() {
                 strokeWidth={isSelected ? 2.5 : 1.5}
                 tappable
                 onPress={() => {
-                  if (isNone || isOccupied || isReserved) return;
+                  if (
+                    !isBookingMode ||
+                    isNone ||
+                    isOccupied ||
+                    isReserved ||
+                    isMySpot
+                  )
+                    return;
                   setSelected((prev) => (prev === spot.id ? null : spot.id));
                 }}
               />
-              {/* Only show number label on selected or occupied */}
-              {(isSelected || isOccupied || isReserved) && (
+              {/* Only show number label on selected, occupied, locally reserved, or my spot */}
+              {(isSelected || isOccupied || isReserved || isMySpot) && (
                 <Marker
                   coordinate={spot.coordinate}
                   anchor={{ x: 0.5, y: 0.5 }}
@@ -253,7 +281,9 @@ export default function ParkingScreen() {
                         ? "#ef4444"
                         : isReserved
                           ? "#22c55e"
-                          : "#fff",
+                          : isMySpot
+                            ? "#3b82f6"
+                            : "#fff",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
@@ -265,7 +295,11 @@ export default function ParkingScreen() {
                         color: isSelected ? "#111" : "#fff",
                       }}
                     >
-                      {isOccupied ? "✕" : isReserved ? "✓" : spot.id}
+                      {isOccupied
+                        ? "✕"
+                        : isReserved || isMySpot
+                          ? "✓"
+                          : spot.id}
                     </Text>
                   </View>
                 </Marker>
@@ -326,6 +360,7 @@ export default function ParkingScreen() {
             {[
               { color: "#22c55e", label: "Available" },
               { color: "#ef4444", label: "Occupied" },
+              { color: "#3b82f6", label: "Reserved" },
               { color: "#ffffff", label: "Selected" },
             ].map((l) => (
               <View key={l.label} className="flex-row items-center gap-1.5">
@@ -345,6 +380,25 @@ export default function ParkingScreen() {
           </View>
         </View>
       </View>
+
+      {/* ── Lock overlay — shown when no plate scan ── */}
+      {!isBookingMode && (
+        <View
+          className="absolute inset-0 items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
+          pointerEvents="none"
+        >
+          <View className="bg-[#2D3139] rounded-2xl px-8 py-6 items-center mx-8">
+            <Text className="text-white text-[18px] font-bold mb-2">
+              🔒 Map Locked
+            </Text>
+            <Text className="text-zinc-400 text-[13px] text-center leading-5">
+              Drive to the parking entrance.{"\n"}Your plate will be scanned and
+              you'll be redirected here automatically.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* ── Confirm CTA ── */}
       {selected && (

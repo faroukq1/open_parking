@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/authStore";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchActiveBooking,
   fetchAvailableSpots,
@@ -17,7 +17,7 @@ import {
   type AvailableSpots,
   type BookingHistory,
 } from "@/lib/parkingApi";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import customFetch from "@/lib/customFetch";
 
 export default function HomeScreen() {
@@ -35,39 +35,42 @@ export default function HomeScreen() {
   );
   const [bookingHistory, setBookingHistory] = useState<BookingHistory[]>([]);
 
-  // Fetch data on mount
-  useEffect(() => {
-    const fetchData = async () => {
+  // Re-fetch every time the home tab comes into focus (covers navigate-back)
+  useFocusEffect(
+    useCallback(() => {
       if (!user?.id) return;
 
-      try {
-        setLoading(true);
-        setError(null);
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          setError(null);
 
-        // Fetch all data in parallel
-        const [booking, spots, history] = await Promise.all([
-          fetchActiveBooking(String(user.id)),
-          fetchAvailableSpots(),
-          fetchBookingHistory(String(user.id), 3),
-        ]);
+          const [booking, spots, history] = await Promise.all([
+            fetchActiveBooking(String(user.id)),
+            fetchAvailableSpots(),
+            fetchBookingHistory(String(user.id), 3),
+          ]);
 
-        setActiveBooking(booking);
-        setAvailableSpots(spots);
-        setBookingHistory(history);
-      } catch (err: any) {
-        console.error("Error fetching home screen data:", err);
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    };
+          setActiveBooking(booking);
+          setAvailableSpots(spots);
+          setBookingHistory(history);
+        } catch (err: any) {
+          console.error("Error fetching home screen data:", err);
+          setError(err.message || "Failed to load data");
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchData();
-  }, [user?.id]);
+      fetchData();
+    }, [user?.id]),
+  );
 
-  // Poll for pending entry every 5 seconds
+  // Poll for pending-entry flag while the user has no active booking.
+  // Once the camera scans their plate, pending_entry flips to true and we
+  // navigate them straight to the parking booking screen.
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || activeBooking) return; // stop polling while already booked
 
     const poll = async () => {
       try {
@@ -76,13 +79,30 @@ export default function HomeScreen() {
           router.push("/(app)/parking?mode=booking");
         }
       } catch {
-        // Ignore polling errors
+        // ignore transient network errors
       }
     };
 
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [user?.id, activeBooking]);
+
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancel = async () => {
+    if (!activeBooking?.booking_id) return;
+    setIsCancelling(true);
+    try {
+      await customFetch.delete(`/bookings/${activeBooking.booking_id}`);
+      setActiveBooking(null);
+      const spots = await fetchAvailableSpots();
+      setAvailableSpots(spots);
+    } catch (err: any) {
+      console.error("Cancel booking failed:", err);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -191,26 +211,26 @@ export default function HomeScreen() {
             </Text>
             <View
               className={`flex-row items-center px-2.5 py-1 rounded-full ${
-                activeBooking.status === "PARKED"
+                activeBooking.status === "active"
                   ? "bg-emerald-500/20"
                   : "bg-blue-500/20"
               }`}
             >
               <View
                 className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                  activeBooking.status === "PARKED"
+                  activeBooking.status === "active"
                     ? "bg-emerald-400"
                     : "bg-blue-400"
                 }`}
               />
               <Text
                 className={`text-[11px] font-semibold ${
-                  activeBooking.status === "PARKED"
+                  activeBooking.status === "active"
                     ? "text-emerald-400"
                     : "text-blue-400"
                 }`}
               >
-                {activeBooking.status}
+                {activeBooking.status === "active" ? "PARKED" : "RESERVED"}
               </Text>
             </View>
           </View>
@@ -242,23 +262,26 @@ export default function HomeScreen() {
             <View className="flex-row items-center">
               <Clock size={14} color="#9CA3AF" strokeWidth={1.8} />
               <Text className="text-zinc-400 text-[13px] ml-1.5">
-                Entered at{" "}
+                {activeBooking.status === "active" ? "Entered" : "Reserved"} at{" "}
                 <Text className="text-white font-medium">
-                  {formatTime(activeBooking.entered_at)}
+                  {activeBooking.status === "active"
+                    ? formatTime(activeBooking.entered_at!)
+                    : formatTime(activeBooking.reserved_at)}
                 </Text>
               </Text>
             </View>
             <View className="flex-row gap-3">
-              <TouchableOpacity className="bg-zinc-700 px-3 py-1.5 rounded-lg">
-                <Text className="text-zinc-200 text-[12px] font-medium">
-                  Extend
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity className="bg-red-500/20 px-3 py-1.5 rounded-lg">
-                <Text className="text-red-400 text-[12px] font-medium">
-                  Cancel
-                </Text>
-              </TouchableOpacity>
+              {activeBooking.status === "reserved" && (
+                <TouchableOpacity
+                  className="bg-red-500/20 px-3 py-1.5 rounded-lg"
+                  onPress={handleCancel}
+                  disabled={isCancelling}
+                >
+                  <Text className="text-red-400 text-[12px] font-medium">
+                    {isCancelling ? "Cancelling..." : "Cancel"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -291,6 +314,7 @@ export default function HomeScreen() {
           className="flex-1 bg-zinc-900 rounded-2xl p-4 items-center justify-center"
           style={{ minHeight: 90 }}
           activeOpacity={0.85}
+          onPress={() => router.push("/(app)/parking")}
         >
           <MapPin size={22} color="#fff" strokeWidth={1.8} />
           <Text className="text-white text-[13px] font-medium mt-2 text-center">

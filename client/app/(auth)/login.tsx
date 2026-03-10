@@ -72,11 +72,10 @@ export default function LoginScreen() {
       bottomLinkText="Sign up"
       onBottomLinkPress={() => router.push("/(auth)/register")}
       header={
-        <View className="flex-row items-center justify-between">
-          <Text className="text-3xl font-bold text-zinc-900">SmartPark</Text>
+        <View className="flex-row items-center justify-center">
           <Image
             source={require("@/assets/images/logo.png")}
-            className="w-28 h-28"
+            className="w-52 h-52"
             resizeMode="contain"
           />
         </View>

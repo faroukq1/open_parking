@@ -1,11 +1,12 @@
 import customFetch from "./customFetch";
 
 export interface ActiveBooking {
-  id: string;
+  booking_id: number;
   spot_number: number;
   plate_number: string;
-  status: "PARKED" | "RESERVED";
-  entered_at: string;
+  status: "reserved" | "active";
+  entered_at: string | null;
+  reserved_at: string;
 }
 
 export interface AvailableSpots {
