@@ -46,7 +46,7 @@ export default function AppLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <View
-              className={`rounded-xl items-center justify-center ${focused ? "bg-zinc-600" : ""}`}
+              className={`w-11 h-11 rounded-xl items-center justify-center ${focused ? "bg-zinc-600" : ""}`}
             >
               <Home
                 size={20}
