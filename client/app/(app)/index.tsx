@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/authStore";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   fetchActiveBooking,
   fetchAvailableSpots,
@@ -187,6 +187,12 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Active booking card ── */}
+      {error && (
+        <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+          <Text className="text-red-700 text-[12.5px]">{error}</Text>
+        </View>
+      )}
+
       {loading ? (
         <View className="bg-zinc-100 rounded-2xl p-6 mb-6 items-center justify-center h-32">
           <ActivityIndicator size="small" color="#9CA3AF" />
@@ -326,6 +332,7 @@ export default function HomeScreen() {
           className="flex-1 bg-zinc-100 rounded-2xl p-4 items-center justify-center"
           style={{ minHeight: 90 }}
           activeOpacity={0.85}
+          onPress={() => router.push("/(app)/profile")}
         >
           <Car size={22} color="#3F3F46" strokeWidth={1.8} />
           <Text className="text-zinc-700 text-[13px] font-medium mt-2 text-center">

@@ -153,23 +153,6 @@ export default function RegisterScreen() {
         onPress={handleRegister}
         disabled={loading || !agreedToTerms}
       />
-
-      {/* OR divider */}
-      <View className="flex-row items-center mb-5">
-        <View className="flex-1 h-px bg-zinc-100" />
-        <Text className="mx-3 text-[12px] text-zinc-400 uppercase tracking-widest">
-          Or continue with
-        </Text>
-        <View className="flex-1 h-px bg-zinc-100" />
-      </View>
-
-      {/* Google button */}
-      <Button
-        label="Google"
-        variant="outline"
-        icon={<Text className="text-[15px]">G</Text>}
-        onPress={handleGoogleRegister}
-      />
     </AuthScreenWrapper>
   );
 }

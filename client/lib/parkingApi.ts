@@ -15,14 +15,22 @@ export interface AvailableSpots {
 }
 
 export interface BookingHistory {
-  id: string;
+  booking_id: number;
   spot_number: number;
   plate_number: string;
-  status: string;
+  status: "RESERVED" | "PARKED" | "COMPLETED" | "CANCELLED";
   entered_at?: string;
   exited_at?: string;
   reserved_at: string;
 }
+
+const toUiStatus = (status: string): BookingHistory["status"] => {
+  const normalized = status.toLowerCase();
+  if (normalized === "active") return "PARKED";
+  if (normalized === "reserved") return "RESERVED";
+  if (normalized === "completed") return "COMPLETED";
+  return "CANCELLED";
+};
 
 /**
  * Fetch active booking for a specific user
@@ -71,7 +79,15 @@ export const fetchBookingHistory = async (
     const response = await customFetch.get(`/bookings/history/${userId}`, {
       params: { limit },
     });
-    return response.data;
+    return (response.data || []).map((item: any) => ({
+      booking_id: item.booking_id,
+      spot_number: item.spot_number,
+      plate_number: item.plate_number,
+      status: toUiStatus(item.status),
+      entered_at: item.entered_at,
+      exited_at: item.exited_at,
+      reserved_at: item.reserved_at,
+    }));
   } catch (error) {
     throw error;
   }

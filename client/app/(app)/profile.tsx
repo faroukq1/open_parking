@@ -1,13 +1,11 @@
 import { useRouter } from "expo-router";
 import {
-  Bell,
   Car,
   ChevronRight,
   Clock,
   Edit2,
   Home,
   LogOut,
-  Moon,
   Phone,
   Shield,
   User,
@@ -16,7 +14,6 @@ import {
 import { useState } from "react";
 import {
   ScrollView,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -81,8 +78,6 @@ function Row({
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [licensePlateModalVisible, setLicensePlateModalVisible] =

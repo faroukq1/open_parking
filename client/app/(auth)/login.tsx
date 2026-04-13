@@ -2,14 +2,7 @@ import AuthScreenWrapper from "@/components/auth/Authscreenwrapper";
 import { Button, Input } from "@/components/ui";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import {
-  Image,
-  Text,
-  TouchableOpacity,
-  View,
-  Alert,
-  Platform,
-} from "react-native";
+import { Image, Text, TouchableOpacity, View, Alert } from "react-native";
 import { useAuthStore } from "@/stores/authStore";
 import Toast from "react-native-toast-message";
 // Push token registration is only supported in dev builds (not Expo Go).
@@ -17,7 +10,7 @@ import Toast from "react-native-toast-message";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, loading, error: storeError } = useAuthStore();
+  const { login, loading } = useAuthStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -33,7 +26,7 @@ export default function LoginScreen() {
     }
 
     try {
-      await login(email, password);
+      await login(email.trim().toLowerCase(), password);
       Toast.show({
         type: "success",
         text1: "Login Successful",
@@ -60,8 +53,7 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => {
-    router.push("/");
-    // TODO: Create this screen or replace with your actual route
+    Alert.alert("Coming Soon", "Password reset is not yet available.");
   };
 
   return (
@@ -101,40 +93,12 @@ export default function LoginScreen() {
         onChangeText={setPassword}
       />
 
-      {/* Forgot password */}
-      <TouchableOpacity
-        className="self-end mb-5"
-        activeOpacity={0.7}
-        onPress={handleForgotPassword}
-      >
-        <Text className="text-[13px] text-zinc-500 underline">
-          Forgot your password?
-        </Text>
-      </TouchableOpacity>
-
       {/* Sign in button */}
       <Button
         label="Sign in"
         loading={loading}
         onPress={handleLogin}
         disabled={loading}
-      />
-
-      {/* OR divider */}
-      <View className="flex-row items-center mb-5">
-        <View className="flex-1 h-px bg-zinc-100" />
-        <Text className="mx-3 text-[12px] text-zinc-400 uppercase tracking-widest">
-          Or continue with
-        </Text>
-        <View className="flex-1 h-px bg-zinc-100" />
-      </View>
-
-      {/* Google button */}
-      <Button
-        label="Google"
-        variant="outline"
-        icon={<Text className="text-[15px]">G</Text>}
-        onPress={handleGoogleLogin}
       />
 
       {/* Terms notice */}

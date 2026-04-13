@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from datetime import datetime
 
@@ -38,11 +38,16 @@ def get_active_booking(user_id: int, session: Session = Depends(get_session)):
 
 
 @router.get("/history/{user_id}")
-def get_booking_history(user_id: int, session: Session = Depends(get_session)):
+def get_booking_history(
+    user_id: int,
+    limit: int = Query(default=10, ge=1, le=100),
+    session: Session = Depends(get_session),
+):
     bookings = session.exec(
         select(Booking)
         .where(Booking.user_id == user_id)
         .order_by(Booking.reserved_at.desc())
+        .limit(limit)
     ).all()
 
     history = []
@@ -51,7 +56,7 @@ def get_booking_history(user_id: int, session: Session = Depends(get_session)):
         vehicle = session.get(Vehicle, b.vehicle_id)
         history.append({
             "booking_id":   b.id,
-            "status":       b.status,
+            "status":       b.status.value,
             "spot_number":  spot.spot_number if spot else None,
             "plate_number": vehicle.plate_number if vehicle else None,
             "reserved_at":  b.reserved_at,

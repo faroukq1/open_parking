@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import customFetch from "@/lib/customFetch";
-import { tryCatch } from "@/lib/utils";
+import { extractErrorMessage, tryCatch } from "@/lib/utils";
 
 // Types
 interface Vehicle {
@@ -165,11 +165,12 @@ export const useAuthStore = create<AuthStore>()(
 
           set({ user: updatedUser, loading: false, error: null });
         } catch (error: any) {
+          const message = extractErrorMessage(error, "Profile update failed");
           set({
             loading: false,
-            error: error.message || "Profile update failed",
+            error: message,
           });
-          throw error;
+          throw new Error(message);
         }
       },
 
@@ -190,11 +191,15 @@ export const useAuthStore = create<AuthStore>()(
 
           set({ loading: false, error: null });
         } catch (error: any) {
+          const message = extractErrorMessage(
+            error,
+            "Failed to change password",
+          );
           set({
             loading: false,
-            error: error.message || "Failed to change password",
+            error: message,
           });
-          throw error;
+          throw new Error(message);
         }
       },
 
@@ -212,12 +217,12 @@ export const useAuthStore = create<AuthStore>()(
             `/users/${currentUser.id}/vehicle`,
             {
               vehicle_id: vehicleId,
-              plate_number: plateNumber,
+              plate_number: plateNumber.trim().toUpperCase(),
             },
           );
 
           // Update user vehicles
-          const updatedVehicles = currentUser.vehicles || [];
+          const updatedVehicles = [...(currentUser.vehicles || [])];
           if (vehicleId) {
             const index = updatedVehicles.findIndex((v) => v.id === vehicleId);
             if (index !== -1) {
@@ -234,11 +239,15 @@ export const useAuthStore = create<AuthStore>()(
 
           set({ user: updatedUser, loading: false, error: null });
         } catch (error: any) {
+          const message = extractErrorMessage(
+            error,
+            "Failed to update license plate",
+          );
           set({
             loading: false,
-            error: error.message || "Failed to update license plate",
+            error: message,
           });
-          throw error;
+          throw new Error(message);
         }
       },
 

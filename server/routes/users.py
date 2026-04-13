@@ -131,9 +131,13 @@ def add_vehicle(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    normalized_plate = body.plate_number.strip().upper()
+    if not normalized_plate:
+        raise HTTPException(status_code=400, detail="License plate cannot be empty")
+
     # Check if plate already exists
     existing_plate = session.exec(
-        select(Vehicle).where(Vehicle.plate_number == body.plate_number)
+        select(Vehicle).where(Vehicle.plate_number == normalized_plate)
     ).first()
     if existing_plate and (not body.vehicle_id or existing_plate.id != body.vehicle_id):
         raise HTTPException(status_code=400, detail="License plate already in use")
@@ -145,9 +149,9 @@ def add_vehicle(
             raise HTTPException(status_code=404, detail="Vehicle not found")
         if vehicle.user_id != user_id:
             raise HTTPException(status_code=403, detail="Unauthorized")
-        vehicle.plate_number = body.plate_number
+        vehicle.plate_number = normalized_plate
     else:
-        vehicle = Vehicle(user_id=user_id, plate_number=body.plate_number)
+        vehicle = Vehicle(user_id=user_id, plate_number=normalized_plate)
 
     session.add(vehicle)
     session.commit()

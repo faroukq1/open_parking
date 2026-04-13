@@ -10,17 +10,29 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register", response_model=UserReadWithVehicles)
 def register(data: UserCreate, session: Session = Depends(get_session)):
+    email = data.email.strip().lower()
+
+    if not data.plate_numbers:
+        raise HTTPException(400, "At least one plate number is required")
 
     # 1. Check email not already used
-    exists = session.exec(select(User).where(User.email == data.email)).first()
+    exists = session.exec(select(User).where(User.email == email)).first()
     if exists:
         raise HTTPException(400, "Email already registered")
 
     # 2. Check no duplicate plates
+    normalized_plates = []
     for plate in data.plate_numbers:
-        taken = session.exec(select(Vehicle).where(Vehicle.plate_number == plate.upper())).first()
+        normalized_plate = plate.strip().upper()
+        if not normalized_plate:
+            raise HTTPException(400, "Plate number cannot be empty")
+        normalized_plates.append(normalized_plate)
+
+        taken = session.exec(
+            select(Vehicle).where(Vehicle.plate_number == normalized_plate)
+        ).first()
         if taken:
-            raise HTTPException(400, f"Plate {plate} already registered")
+            raise HTTPException(400, f"Plate {normalized_plate} already registered")
 
     # 3. Create user
     password_bytes = data.password.encode('utf-8')[:72]
@@ -28,7 +40,7 @@ def register(data: UserCreate, session: Session = Depends(get_session)):
 
     user = User(
         full_name=data.full_name,
-        email=data.email,
+        email=email,
         phone=data.phone,
         hashed_password=hashed_password,
         user_type=data.user_type,
@@ -40,8 +52,8 @@ def register(data: UserCreate, session: Session = Depends(get_session)):
 
     # 4. Create vehicles
     vehicles = []
-    for plate in data.plate_numbers:
-        vehicle = Vehicle(user_id=user.id, plate_number=plate.upper())
+    for plate in normalized_plates:
+        vehicle = Vehicle(user_id=user.id, plate_number=plate)
         session.add(vehicle)
         vehicles.append(vehicle)
     session.commit()
@@ -62,9 +74,10 @@ def register(data: UserCreate, session: Session = Depends(get_session)):
 
 @router.post("/login", response_model=UserReadWithVehicles)
 def login(data: LoginRequest, session: Session = Depends(get_session)):
+    normalized_email = data.email.strip().lower()
 
     # 1. Find user by email
-    user = session.exec(select(User).where(User.email == data.email)).first()
+    user = session.exec(select(User).where(User.email == normalized_email)).first()
     if not user:
         raise HTTPException(401, "Invalid email or password")
 

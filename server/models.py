@@ -72,7 +72,7 @@ class UserCreate(SQLModel):
     password:     str
     user_type:    UserType      = UserType.visitor
     room_number:  Optional[str] = None
-    plate_numbers: list[str]    = []   # one or more cars at register time
+    plate_numbers: list[str]    = Field(default_factory=list)   # one or more cars at register time
 
 
 class LoginRequest(SQLModel):
@@ -123,7 +123,7 @@ class UserReadWithVehicles(SQLModel):
     user_type:   UserType
     room_number: Optional[str]
     created_at:  datetime
-    vehicles:    list[VehicleRead] = []
+    vehicles:    list[VehicleRead] = Field(default_factory=list)
 
 
 class SpotRead(SQLModel):

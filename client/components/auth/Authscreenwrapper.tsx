@@ -54,7 +54,7 @@ export default function AuthScreenWrapper({
           <View className="px-6 pt-4 pb-2">
             <TouchableOpacity
               className="w-9 h-9 rounded-md border border-zinc-200 items-center justify-center"
-              onPress={() => router.back()}
+              onPress={() => router.push("/(auth)/login")}
               activeOpacity={0.7}
             >
               <Text className="text-zinc-700 text-[16px]">←</Text>

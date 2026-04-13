@@ -1,11 +1,18 @@
+import os
+from pathlib import Path
+
 from sqlmodel import SQLModel, create_engine, Session, select
 from models import ParkingSpot
 
-engine = create_engine(
-    "sqlite:///./parking.db",
-    connect_args={"check_same_thread": False},
-    echo=False,
-)
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_SQLITE_PATH = BASE_DIR / "parking.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_SQLITE_PATH}")
+
+engine_kwargs = {"echo": False}
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 
 def create_tables():

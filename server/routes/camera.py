@@ -13,7 +13,12 @@ router = APIRouter(prefix="/camera", tags=["camera"])
 
 # ── Initialize EasyOCR once at startup (heavy model load) ──
 # English + French — covers Algerian/European plates
-reader = easyocr.Reader(["en", "fr"], gpu=False)
+try:
+    reader = easyocr.Reader(["en", "fr"], gpu=False)
+    OCR_INIT_ERROR = None
+except Exception as exc:
+    reader = None
+    OCR_INIT_ERROR = str(exc)
 
 
 def preprocess_image(img_bytes: bytes) -> np.ndarray:
@@ -21,6 +26,8 @@ def preprocess_image(img_bytes: bytes) -> np.ndarray:
     # Decode bytes → numpy array
     nparr = np.frombuffer(img_bytes, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError("Invalid or unsupported image file")
 
     # 1. Resize if too small (helps OCR)
     h, w = img.shape[:2]
@@ -47,6 +54,9 @@ def preprocess_image(img_bytes: bytes) -> np.ndarray:
 
 def extract_plate_text(img_array: np.ndarray) -> list[str]:
     """Run EasyOCR and return cleaned plate candidates."""
+    if reader is None:
+        return []
+
     results = reader.readtext(img_array, detail=1, paragraph=False)
 
     candidates = []
@@ -68,14 +78,23 @@ async def verify_plate(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ):
+    if reader is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"OCR engine unavailable: {OCR_INIT_ERROR or 'initialization failed'}",
+        )
+
     # 1. Read uploaded image
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
     img_bytes = await file.read()
 
     # 2. Preprocess
-    processed = preprocess_image(img_bytes)
+    try:
+        processed = preprocess_image(img_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # 3. OCR — get plate candidates
     candidates = extract_plate_text(processed)
@@ -169,8 +188,21 @@ async def verify_gate(
     if gate not in ("entry", "exit"):
         raise HTTPException(status_code=400, detail="gate must be 'entry' or 'exit'")
 
+    if reader is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"OCR engine unavailable: {OCR_INIT_ERROR or 'initialization failed'}",
+        )
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
     img_bytes = await file.read()
-    processed = preprocess_image(img_bytes)
+    try:
+        processed = preprocess_image(img_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     candidates = extract_plate_text(processed)
 
     if not candidates:

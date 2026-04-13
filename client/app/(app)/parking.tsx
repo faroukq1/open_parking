@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -178,7 +178,7 @@ export default function ParkingScreen() {
           Toast.show({
             type: "error",
             text1: "Invalid spot",
-            text2: "This spot doesn't exist",
+            text2: "This spot does not exist",
           });
           return;
         }
@@ -392,7 +392,7 @@ export default function ParkingScreen() {
             </Text>
             <Text className="text-zinc-400 text-[13px] text-center leading-5">
               Drive to the parking entrance.{"\n"}Your plate will be scanned and
-              you'll be redirected here automatically.
+              you will be redirected here automatically.
             </Text>
           </View>
         </View>

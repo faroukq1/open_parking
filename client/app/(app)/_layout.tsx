@@ -1,15 +1,22 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { Home, MapPin, User } from "lucide-react-native";
-import { Dimensions, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuthStore } from "@/stores/authStore";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const TAB_COUNT = 3;
 const ICON_WIDTH = 64; // each tab item width
-const TAB_WIDTH = Math.max(TAB_COUNT * ICON_WIDTH, SCREEN_WIDTH / 3);
 
 export default function AppLayout() {
   const insets = useSafeAreaInsets();
+  const { user, isHydrated } = useAuthStore();
+
+  if (!isHydrated) {
+    return null;
+  }
+
+  if (!user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs
@@ -30,7 +37,7 @@ export default function AppLayout() {
           shadowRadius: 20,
           elevation: 12,
           paddingTop: 10,
-          marginHorizontal: 50,
+          marginHorizontal: 30,
         },
         tabBarItemStyle: {
           height: 64,
