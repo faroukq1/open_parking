@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "parking_app",
-    "slug": "parking_app",
+    "name": "hotelpark let's go",
+    "slug": "hotelpark-lets-go",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
