@@ -73,7 +73,7 @@ def create_booking(user_id: int, data: BookingCreate, session: Session = Depends
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
-    if not user.pending_entry:
+    if not user.is_enter:
         raise HTTPException(403, "Plate scan required before booking")
 
     spot = session.get(ParkingSpot, data.spot_id)

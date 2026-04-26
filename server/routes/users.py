@@ -14,6 +14,7 @@ class UpdateProfileRequest(BaseModel):
     full_name: Optional[str] = None
     email:     Optional[str] = None
     phone:     Optional[str] = None
+    user_type: Optional[str] = None  # "resident" or "visitor"
 
 
 class UpdatePasswordRequest(BaseModel):
@@ -43,6 +44,7 @@ def get_user(user_id: int, session: Session = Depends(get_session)):
         "phone":      user.phone,
         "user_type":  user.user_type,
         "created_at": user.created_at,
+        "is_enter":   user.is_enter,
     }
 
 
@@ -67,6 +69,9 @@ def update_profile(
         user.full_name = body.full_name
     if body.phone:
         user.phone = body.phone
+    if body.user_type in ("resident", "visitor"):
+        from models import UserType
+        user.user_type = UserType(body.user_type)
 
     session.add(user)
     session.commit()
@@ -78,6 +83,7 @@ def update_profile(
         "email":     user.email,
         "phone":     user.phone,
         "user_type": user.user_type,
+        "is_enter":  user.is_enter,
     }
 
 
@@ -187,7 +193,7 @@ def get_pending_entry(user_id: int, session: Session = Depends(get_session)):
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"pending": user.pending_entry}
+    return {"pending": user.pending_entry, "is_enter": user.is_enter}
 
 
 # ── POST /users/{user_id}/clear-pending ─────────────────────

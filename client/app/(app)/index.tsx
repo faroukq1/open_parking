@@ -1,4 +1,11 @@
-import { Car, CheckCircle, Clock, MapPin } from "lucide-react-native";
+import {
+  Car,
+  CheckCircle,
+  Clock,
+  MapPin,
+  LogIn,
+  LogOut,
+} from "lucide-react-native";
 import {
   ScrollView,
   Text,
@@ -8,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/authStore";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchActiveBooking,
   fetchAvailableSpots,
@@ -19,12 +26,12 @@ import {
 } from "@/lib/parkingApi";
 import { router, useFocusEffect } from "expo-router";
 import customFetch from "@/lib/customFetch";
+import Toast from "react-native-toast-message";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
 
-  // Loading and data states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeBooking, setActiveBooking] = useState<ActiveBooking | null>(
@@ -34,8 +41,15 @@ export default function HomeScreen() {
     null,
   );
   const [bookingHistory, setBookingHistory] = useState<BookingHistory[]>([]);
+  const [isEnter, setIsEnter] = useState<boolean>(user?.is_enter ?? false);
+  const prevIsEnterRef = useRef(user?.is_enter ?? false);
+  const [updatingType, setUpdatingType] = useState(false);
 
-  // Re-fetch every time the home tab comes into focus (covers navigate-back)
+  // Resident / Visitor toggle — initialise from user's stored type
+  const [selectedType, setSelectedType] = useState<"resident" | "visitor">(
+    user?.user_type ?? "visitor",
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
@@ -66,15 +80,29 @@ export default function HomeScreen() {
     }, [user?.id]),
   );
 
-  // Poll for pending-entry flag while the user has no active booking.
-  // Once the camera scans their plate, pending_entry flips to true and we
-  // navigate them straight to the parking booking screen.
+  // Poll for is_enter and pending-entry changes
   useEffect(() => {
-    if (!user?.id || activeBooking) return; // stop polling while already booked
+    if (!user?.id) return;
 
     const poll = async () => {
       try {
         const res = await customFetch.get(`/users/${user.id}/pending-entry`);
+        const newIsEnter: boolean | undefined = res.data?.is_enter;
+
+        if (newIsEnter !== undefined) {
+          if (prevIsEnterRef.current && !newIsEnter) {
+            // Car just exited — refresh booking and available spots
+            const [booking, spots] = await Promise.all([
+              fetchActiveBooking(String(user.id)),
+              fetchAvailableSpots(),
+            ]);
+            setActiveBooking(booking);
+            setAvailableSpots(spots);
+          }
+          prevIsEnterRef.current = newIsEnter;
+          setIsEnter(newIsEnter);
+        }
+
         if (res.data?.pending === true) {
           router.push("/(app)/parking?mode=booking");
         }
@@ -85,22 +113,20 @@ export default function HomeScreen() {
 
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [user?.id, activeBooking]);
+  }, [user?.id]);
 
-  const [isCancelling, setIsCancelling] = useState(false);
-
-  const handleCancel = async () => {
-    if (!activeBooking?.booking_id) return;
-    setIsCancelling(true);
+  const handleTypeSelect = async (type: "resident" | "visitor") => {
+    if (type === selectedType || updatingType) return;
+    setSelectedType(type);
+    setUpdatingType(true);
     try {
-      await customFetch.delete(`/bookings/${activeBooking.booking_id}`);
-      setActiveBooking(null);
-      const spots = await fetchAvailableSpots();
-      setAvailableSpots(spots);
-    } catch (err: any) {
-      console.error("Cancel booking failed:", err);
+      await updateUser({ user_type: type } as any);
+    } catch {
+      // revert on failure
+      setSelectedType(selectedType);
+      Toast.show({ type: "error", text1: "Could not update type" });
     } finally {
-      setIsCancelling(false);
+      setUpdatingType(false);
     }
   };
 
@@ -114,7 +140,6 @@ export default function HomeScreen() {
 
   const fullName = user.full_name.toString();
 
-  // Format time string (convert ISO or other format to readable time)
   const formatTime = (timeString: string): string => {
     try {
       const date = new Date(timeString);
@@ -127,7 +152,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Format date for recent activity
   const formatActivityDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
@@ -167,7 +191,7 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* ── Header ── */}
-      <View className="flex-row items-center justify-between mb-8">
+      <View className="flex-row items-center justify-between mb-6">
         <View>
           <Text className="text-[13px] text-zinc-400 mb-0.5">
             Good afternoon,
@@ -186,13 +210,55 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Active booking card ── */}
+      {/* ── Resident / Visitor toggle ── */}
+      <Text className="text-[13px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">
+        I am a
+      </Text>
+      <View className="flex-row gap-3 mb-6">
+        {(["visitor", "resident"] as const).map((type) => {
+          const active = selectedType === type;
+          return (
+            <TouchableOpacity
+              key={type}
+              onPress={() => handleTypeSelect(type)}
+              disabled={updatingType}
+              className={`flex-1 rounded-2xl py-3 items-center border ${
+                active
+                  ? "bg-zinc-900 border-zinc-900"
+                  : "bg-white border-zinc-200"
+              }`}
+              activeOpacity={0.8}
+            >
+              <Text
+                className={`text-[14px] font-semibold ${
+                  active ? "text-white" : "text-zinc-500"
+                }`}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* ── Entry status banner (shown when car is inside) ── */}
+      {isEnter && (
+        <View className="flex-row items-center bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 mb-5 gap-3">
+          <LogIn size={18} color="#10B981" strokeWidth={2} />
+          <Text className="text-emerald-700 text-[13px] font-semibold flex-1">
+            Your car is currently inside the parking
+          </Text>
+        </View>
+      )}
+
+      {/* ── Error banner ── */}
       {error && (
         <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
           <Text className="text-red-700 text-[12.5px]">{error}</Text>
         </View>
       )}
 
+      {/* ── Active booking card ── */}
       {loading ? (
         <View className="bg-zinc-100 rounded-2xl p-6 mb-6 items-center justify-center h-32">
           <ActivityIndicator size="small" color="#9CA3AF" />
@@ -276,19 +342,6 @@ export default function HomeScreen() {
                 </Text>
               </Text>
             </View>
-            <View className="flex-row gap-3">
-              {activeBooking.status === "reserved" && (
-                <TouchableOpacity
-                  className="bg-red-500/20 px-3 py-1.5 rounded-lg"
-                  onPress={handleCancel}
-                  disabled={isCancelling}
-                >
-                  <Text className="text-red-400 text-[12px] font-medium">
-                    {isCancelling ? "Cancelling..." : "Cancel"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
         </View>
       ) : (
@@ -324,7 +377,7 @@ export default function HomeScreen() {
         >
           <MapPin size={22} color="#fff" strokeWidth={1.8} />
           <Text className="text-white text-[13px] font-medium mt-2 text-center">
-            Book a Spot
+            View Map
           </Text>
         </TouchableOpacity>
 
@@ -356,6 +409,12 @@ export default function HomeScreen() {
             color: "#10B981",
           },
           {
+            label: "Inside Parking",
+            value: isEnter ? "Yes" : "No",
+            icon: isEnter ? LogIn : LogOut,
+            color: isEnter ? "#10B981" : "#9CA3AF",
+          },
+          {
             label: "Your Room",
             value: user.room_number ? `Room ${user.room_number}` : "N/A",
             icon: null,
@@ -363,16 +422,15 @@ export default function HomeScreen() {
           },
           {
             label: "Guest Type",
-            value:
-              user.user_type.charAt(0).toUpperCase() + user.user_type.slice(1),
+            value: selectedType.charAt(0).toUpperCase() + selectedType.slice(1),
             icon: null,
             color: null,
           },
-        ].map((item, i) => (
+        ].map((item, i, arr) => (
           <View
             key={i}
             className={`flex-row items-center justify-between px-4 py-3.5 ${
-              i !== 2 ? "border-b border-zinc-100" : ""
+              i !== arr.length - 1 ? "border-b border-zinc-100" : ""
             }`}
           >
             <Text className="text-[14px] text-zinc-500">{item.label}</Text>
@@ -400,14 +458,12 @@ export default function HomeScreen() {
       ) : bookingHistory.length > 0 ? (
         <View className="gap-3">
           {bookingHistory.map((booking, i) => {
-            // Determine activity label based on status
             let label = "Booking";
             if (booking.status === "PARKED") label = "Car parked";
             else if (booking.status === "RESERVED") label = "Spot reserved";
             else if (booking.status === "COMPLETED")
               label = "Booking completed";
 
-            // Determine color based on status
             let colors = {
               bg: "bg-zinc-100",
               text: "text-zinc-600",
@@ -427,7 +483,6 @@ export default function HomeScreen() {
               };
             }
 
-            // Use entered_at if available, otherwise reserved_at
             const timestamp = booking.entered_at || booking.reserved_at;
 
             return (

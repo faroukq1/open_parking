@@ -35,6 +35,7 @@ class User(SQLModel, table=True):
     created_at:      datetime      = Field(default_factory=datetime.utcnow)
     expo_push_token: Optional[str] = None
     pending_entry:   bool          = False
+    is_enter:        bool          = False  # True while car is physically inside the lot
 
 
 class Vehicle(SQLModel, table=True):
@@ -124,6 +125,7 @@ class UserReadWithVehicles(SQLModel):
     room_number: Optional[str]
     created_at:  datetime
     vehicles:    list[VehicleRead] = Field(default_factory=list)
+    is_enter:    bool              = False
 
 
 class SpotRead(SQLModel):

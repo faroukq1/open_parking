@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
@@ -7,17 +7,13 @@ import { useAuthStore } from "@/stores/authStore";
 import customFetch from "@/lib/customFetch";
 import Toast from "react-native-toast-message";
 
-// ── Place Bellecour bounds (from screenshot)
-// The big square: lat 45.7574→45.7590, lon 4.8306→4.8315
-// We split it into a 5x4 grid of small spots ──
-
-const SPOT_LAT_SIZE = 0.00004; // height of each spot
-const SPOT_LON_SIZE = 0.00005; // width of each spot
+const SPOT_LAT_SIZE = 0.00004;
+const SPOT_LON_SIZE = 0.00005;
 const GAP_LAT = 0.00002;
 const GAP_LON = 0.00002;
 
-const START_LAT = 45.75841; // top-left corner lat (north)
-const START_LON = 4.8309; // top-left corner lon (west)
+const START_LAT = 45.75841;
+const START_LON = 4.8309;
 
 const COLS = 14;
 const ROWS = 13;
@@ -101,29 +97,42 @@ export default function ParkingScreen() {
   const isBookingMode = mode === "booking";
   const { user } = useAuthStore();
   const [selected, setSelected] = useState<number | null>(null);
-  const [reserved, setReserved] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbSpots, setDbSpots] = useState<DbSpot[]>([]);
+  const [spotsLoading, setSpotsLoading] = useState(true);
   const [myReservedSpot, setMyReservedSpot] = useState<number | null>(null);
+  const [isEnter, setIsEnter] = useState<boolean>(user?.is_enter ?? false);
+  const isUnlocked = isBookingMode || !!myReservedSpot || isEnter;
 
-  // Re-fetch spots and active booking every time this tab comes into focus
   useFocusEffect(
     useCallback(() => {
+      setSpotsLoading(true);
       customFetch
         .get("/spots/")
         .then((res) => setDbSpots(res.data))
-        .catch(() => {});
+        .catch(() => {
+          Toast.show({
+            type: "error",
+            text1: "Failed to load spots",
+            text2: "Please check your connection and try again",
+          });
+        })
+        .finally(() => setSpotsLoading(false));
 
       if (!user?.id) return;
       customFetch
         .get(`/bookings/active/${user.id}`)
         .then((res) => {
-          if (res.data?.active && res.data.status === "reserved") {
+          if (res.data?.active) {
             setMyReservedSpot(res.data.spot_number);
           } else {
             setMyReservedSpot(null);
           }
         })
+        .catch(() => {});
+      customFetch
+        .get(`/users/${user.id}/pending-entry`)
+        .then((res) => setIsEnter(res.data?.is_enter ?? false))
         .catch(() => {});
     }, [user?.id]),
   );
@@ -140,7 +149,6 @@ export default function ParkingScreen() {
   const getStatus = (id: number): Status => {
     if (!dbSpotNumbers.has(id)) return "none";
     if (selected === id) return "selected";
-    if (reserved.includes(id)) return "selected";
     if (myReservedSpot === id) return "my_spot";
     if (occupiedNumbers.has(id)) return "occupied";
     return "available";
@@ -154,66 +162,62 @@ export default function ParkingScreen() {
       return { fill: "rgba(59,130,246,0.7)", stroke: "#3b82f6" };
     if (status === "occupied")
       return { fill: "rgba(239,68,68,0.7)", stroke: "#ef4444" };
+    if (status === "none")
+      return { fill: "rgba(120,120,120,0.25)", stroke: "rgba(120,120,120,0.4)" };
     return { fill: "rgba(34,197,94,0.55)", stroke: "#22c55e" };
   };
 
   const handleReserve = async () => {
-    if (!selected) return;
+    if (!selected || !user) return;
 
-    if (isBookingMode && user) {
-      // Real booking via API
-      setIsSubmitting(true);
-      try {
-        const vehicleId = user.vehicles?.[0]?.id;
-        if (!vehicleId) {
-          Toast.show({
-            type: "error",
-            text1: "No vehicle found",
-            text2: "Please add a vehicle first",
-          });
-          return;
-        }
-        const dbSpotId = spotNumberToDbId[selected];
-        if (!dbSpotId) {
-          Toast.show({
-            type: "error",
-            text1: "Invalid spot",
-            text2: "This spot does not exist",
-          });
-          return;
-        }
-        await customFetch.post(`/bookings/${user.id}`, {
-          spot_id: dbSpotId,
-          vehicle_id: vehicleId,
-        });
-        await customFetch.post(`/users/${user.id}/clear-pending`);
-        Toast.show({
-          type: "success",
-          text1: "Spot Reserved!",
-          text2: `Spot #${selected} has been booked`,
-        });
-        setMyReservedSpot(selected); // turn spot blue immediately
-        setSelected(null);
-        setTimeout(() => router.replace("/(app)"), 1500);
-      } catch (err: any) {
+    setIsSubmitting(true);
+    try {
+      const vehicleId = user.vehicles?.[0]?.id;
+      if (!vehicleId) {
         Toast.show({
           type: "error",
-          text1: "Booking Failed",
-          text2: err.response?.data?.detail || "Could not reserve spot",
+          text1: "No vehicle found",
+          text2: "Please add a vehicle in your profile first",
         });
-      } finally {
-        setIsSubmitting(false);
+        return;
       }
-    } else {
-      // Local-only reservation (non-booking mode)
-      setReserved((prev) => [...prev, selected]);
+      const dbSpotId = spotNumberToDbId[selected];
+      if (!dbSpotId) {
+        Toast.show({
+          type: "error",
+          text1: "Invalid spot",
+          text2: "This spot does not exist in the system",
+        });
+        return;
+      }
+      await customFetch.post(`/bookings/${user.id}`, {
+        spot_id: dbSpotId,
+        vehicle_id: vehicleId,
+      });
+      Toast.show({
+        type: "success",
+        text1: "Spot Reserved!",
+        text2: `Spot #${selected} has been booked`,
+      });
+      setMyReservedSpot(selected);
       setSelected(null);
+      setTimeout(() => router.replace("/(app)"), 1500);
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      Toast.show({
+        type: "error",
+        text1: "Booking Failed",
+        text2:
+          detail === "Plate scan required before booking"
+            ? "Please drive to the entrance first so your plate can be scanned"
+            : detail || "Could not reserve spot, please try again",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const availableCount = dbSpots.filter(
-    (s) => s.is_available && !reserved.includes(s.spot_number),
-  ).length;
+  const availableCount = dbSpots.filter((s) => s.is_available).length;
 
   return (
     <View className="flex-1">
@@ -227,8 +231,8 @@ export default function ParkingScreen() {
           latitudeDelta: 0.00065,
           longitudeDelta: 0.00065,
         }}
-        minDelta={0.0002}
-        maxDelta={0.0008}
+        minZoomLevel={16}
+        maxZoomLevel={20}
         showsUserLocation
         showsCompass={false}
         toolbarEnabled={false}
@@ -239,8 +243,6 @@ export default function ParkingScreen() {
           const status = getStatus(spot.id);
           const isNone = status === "none";
           const isOccupied = status === "occupied";
-          const isReserved =
-            status === "selected" && reserved.includes(spot.id);
           const isMySpot = status === "my_spot";
 
           return (
@@ -250,21 +252,14 @@ export default function ParkingScreen() {
                 fillColor={colors.fill}
                 strokeColor={colors.stroke}
                 strokeWidth={isSelected ? 2.5 : 1.5}
-                tappable
+                tappable={isUnlocked && !isNone && !isOccupied && !isMySpot}
                 onPress={() => {
-                  if (
-                    !isBookingMode ||
-                    isNone ||
-                    isOccupied ||
-                    isReserved ||
-                    isMySpot
-                  )
+                  if (!isUnlocked || isNone || isOccupied || isMySpot)
                     return;
                   setSelected((prev) => (prev === spot.id ? null : spot.id));
                 }}
               />
-              {/* Only show number label on selected, occupied, locally reserved, or my spot */}
-              {(isSelected || isOccupied || isReserved || isMySpot) && (
+              {(isSelected || isOccupied || isMySpot) && (
                 <Marker
                   coordinate={spot.coordinate}
                   anchor={{ x: 0.5, y: 0.5 }}
@@ -277,11 +272,9 @@ export default function ParkingScreen() {
                       borderRadius: 10,
                       backgroundColor: isOccupied
                         ? "#ef4444"
-                        : isReserved
-                          ? "#22c55e"
-                          : isMySpot
-                            ? "#3b82f6"
-                            : "#fff",
+                        : isMySpot
+                          ? "#3b82f6"
+                          : "#fff",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
@@ -293,11 +286,7 @@ export default function ParkingScreen() {
                         color: isSelected ? "#111" : "#fff",
                       }}
                     >
-                      {isOccupied
-                        ? "✕"
-                        : isReserved || isMySpot
-                          ? "✓"
-                          : spot.id}
+                      {isOccupied ? "✕" : isMySpot ? "✓" : spot.id}
                     </Text>
                   </View>
                 </Marker>
@@ -307,13 +296,26 @@ export default function ParkingScreen() {
         })}
       </MapView>
 
+      {/* ── Spots loading overlay ── */}
+      {spotsLoading && (
+        <View
+          className="absolute inset-0 items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.35)" }}
+          pointerEvents="none"
+        >
+          <ActivityIndicator size="large" color="#ffffff" />
+          <Text className="text-white text-[13px] mt-3 font-medium">
+            Loading spots...
+          </Text>
+        </View>
+      )}
+
       {/* ── Top HUD ── */}
       <View
         className="absolute left-4 right-4"
         style={{ top: insets.top + 12 }}
         pointerEvents="none"
       >
-        {/* Scan banner — only shown in booking mode */}
         {isBookingMode && (
           <View
             className="bg-[#2D3139] rounded-2xl px-5 py-3 mb-2 flex-row items-center gap-3"
@@ -379,27 +381,27 @@ export default function ParkingScreen() {
         </View>
       </View>
 
-      {/* ── Lock overlay — shown when no plate scan ── */}
-      {!isBookingMode && (
+      {/* ── Lock overlay — shown only when no active booking and not in booking mode ── */}
+      {!isUnlocked && (
         <View
           className="absolute inset-0 items-center justify-center"
           style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
-          pointerEvents="none"
+          pointerEvents="box-none"
         >
           <View className="bg-[#2D3139] rounded-2xl px-8 py-6 items-center mx-8">
             <Text className="text-white text-[18px] font-bold mb-2">
               🔒 Map Locked
             </Text>
             <Text className="text-zinc-400 text-[13px] text-center leading-5">
-              Drive to the parking entrance.{"\n"}Your plate will be scanned and
-              you will be redirected here automatically.
+              Drive to the parking entrance.{"\n"}Your plate will be scanned
+              automatically.
             </Text>
           </View>
         </View>
       )}
 
       {/* ── Confirm CTA ── */}
-      {selected && (
+      {selected && isUnlocked && (
         <View
           className="absolute left-4 right-4"
           style={{ bottom: insets.bottom + 90 }}

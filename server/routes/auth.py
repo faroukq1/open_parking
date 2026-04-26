@@ -69,6 +69,7 @@ def register(data: UserCreate, session: Session = Depends(get_session)):
         room_number=user.room_number,
         created_at=user.created_at,
         vehicles=vehicles,
+        is_enter=user.is_enter,
     )
 
 
@@ -99,4 +100,5 @@ def login(data: LoginRequest, session: Session = Depends(get_session)):
         room_number=user.room_number,
         created_at=user.created_at,
         vehicles=list(vehicles),
+        is_enter=user.is_enter,
     )

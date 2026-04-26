@@ -2,7 +2,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import create_tables, seed_spots
+from database import create_tables, run_migrations, seed_spots
 from routes.auth import router as auth_router
 from routes.spots import router as spots_router
 from routes.bookings import router as bookings_router
@@ -27,6 +27,7 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     create_tables()
+    run_migrations()
     seed_spots()
 
 

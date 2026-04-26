@@ -21,6 +21,7 @@ interface User {
   room_number?: string;
   created_at: string;
   vehicles: Vehicle[];
+  is_enter?: boolean;
 }
 
 interface RegisterData {
@@ -49,6 +50,7 @@ interface AuthStore {
     full_name?: string;
     email?: string;
     phone?: string;
+    user_type?: "resident" | "visitor";
   }) => Promise<void>;
   changePassword: (
     currentPassword: string,
@@ -142,6 +144,7 @@ export const useAuthStore = create<AuthStore>()(
         full_name?: string;
         email?: string;
         phone?: string;
+        user_type?: "resident" | "visitor";
       }) => {
         set({ loading: true, error: null });
 
