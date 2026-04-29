@@ -100,7 +100,7 @@ async def verify_plate(
     candidates = extract_plate_text(processed)
 
     if not candidates:
-        return {"action": "DENY", "reason": "No plate detected"}
+        return {"action": "DENY", "reason": "No plate detected", "found": False}
 
     for plate in candidates:
         vehicle = session.exec(
@@ -149,6 +149,7 @@ async def verify_plate(
             return {
                 "action":     "OPEN_ENTRY_BARRIER",
                 "plate_read": plate,
+                "found":      True,
             }
         else:
             # Exit: complete booking, free spot, reset flag
@@ -166,10 +167,12 @@ async def verify_plate(
                 "action":     "OPEN_EXIT_BARRIER",
                 "plate_read": plate,
                 "booking_id": booking.id,
+                "found":      True,
             }
 
     return {
         "action":     "DENY",
         "candidates": candidates,
         "reason":     "Plate not registered or no active booking",
+        "found":      False,
     }

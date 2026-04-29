@@ -1,0 +1,9 @@
+# Camera Scan - curl test commands
+# Image: test/1.png
+# Run these from the project root directory
+
+# ── 1. Verify plate (scan + notify user, no gate action) ──────
+curl -X POST http://localhost:8000/camera/verify \
+  -F "file=@test/3.png;type=image/png"
+
+

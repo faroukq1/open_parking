@@ -104,13 +104,6 @@ export default function LoginScreen() {
         disabled={loading}
       />
 
-      {/* Forgot password */}
-      <TouchableOpacity onPress={handleForgotPassword} className="items-center mt-2">
-        <Text className="text-[13px] text-zinc-500 underline">
-          Forgot password?
-        </Text>
-      </TouchableOpacity>
-
       {/* Terms notice */}
       <Text className="text-[11.5px] text-zinc-400 text-center mt-6 leading-4 px-2">
         By clicking continue, you agree to our{" "}
